@@ -6,6 +6,7 @@
 import nuclai.bootstrap         # Demonstration specific setup.
 import vispy.scene              # Canvas & visuals for rendering.
 import vispy.util.event         # Events and observer support.
+import speech_recognition
 
 CONSOLE_PREFIX = '> '
 CONSOLE_LINEHEIGHT = 40.0
@@ -36,6 +37,34 @@ class TerminalWindow(object):
  
         self._create_canvas()
         self._create_terminal()
+
+        def on_speech_recognize(recognizer, audio):
+            text = None
+            try:
+                text = self.speech_recognizer.recognize_google(audio)
+                is_problem = False
+            except speech_recognition.UnknownValueError:
+                is_problem = True
+            except speech_recognition.RequestError:
+                is_problem = True
+
+            if is_problem:
+                self.log('', align='center', color='#404040')
+                self.log('\u2014 Speech not recognized. \u2014', \
+                align='center', color='#404040')
+            else:
+                self.log('', align='center', color='#404040')
+                self.log('\u2014 Recognized speech: {}. \u2014'.format(text), \
+                align='center', color='#404040')
+                self.log(text, align='left')
+                self.events.user_input(TextEvent(text))
+
+        self.speech_recognizer = speech_recognition.Recognizer()
+        self.microphone = speech_recognition.Microphone()
+        with self.microphone as source:
+            self.speech_recognizer.adjust_for_ambient_noise(source)
+        self.stop_listening = self.speech_recognizer.listen_in_background(\
+        self.microphone, on_speech_recognize)
 
     def _create_canvas(self):
         """Initialize the Vispy scene and a canvas, connect up the events to this object.
